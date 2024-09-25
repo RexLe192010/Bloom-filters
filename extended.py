@@ -6,22 +6,20 @@ import sys
 from BF import BloomFilter, hash_factory
 import matplotlib.pyplot as plt
 
+# Initialize Bloom filter
+data  = pd.read_csv('../user-ct-test-collection-01.txt', sep='\t')
+urllist = data.ClickURL.dropna().unique() # the membership query set
 
-def initialize():
-    data  = pd.read_csv('../user-ct-test-collection-01.txt', sep='\t')
-    urllist = data.ClickURL.dropna().unique()
-
-    # Initialize variables
-    N = 377871
-    R_values = range(1000, 10001, 1000)
-    false_positive_rates = []
-    memory_usages = []
-    # Initialize Bloom filter
-    bloom_filter = BloomFilter(n=N, fp_rate=0.01)
-    # Add URLs to Bloom filter
-    for url in urllist:
-        bloom_filter.insert(url)
-    return urllist, N, R_values, false_positive_rates, memory_usages, bloom_filter
+# Initialize variables
+N = 377871
+R_values = range(1000, 10001, 1000)
+false_positive_rates = []
+memory_usages = []
+# Initialize Bloom filter
+bloom_filter = BloomFilter(n=N, fp_rate=0.01)
+# Add URLs to Bloom filter
+for url in urllist:
+    bloom_filter.insert(url)
 
 
 def sample_1000_urls(urllist):
@@ -46,8 +44,42 @@ def calculate_false_positive_rate(bloom_filter : BloomFilter, false_urls):
     return false_positives / len(false_urls)
 
 
+
+def compare_with_hashtable(urllist, bloom_filter):
+    """
+    Compare the memory usage of the Bloom filter with a Python hashtable.
+
+    input:
+    urllist: list, a list of URLs
+    bloom_filter: BloomFilter, a Bloom filter object
+
+    output:
+    None
+    """
+    # Insert URLs into a Python hashtable (set)
+    hashtable = set(urllist)
+        
+    # Calculate memory usage of the hashtable
+    hashtable_memory_usage = sys.getsizeof(hashtable)
+        
+    # Estimate the size of the Bloom filter using theoretical bit calculations
+    m = - (N * R_values[-1]) / (N * (1 - (1 - 1 / N) ** (N * R_values[-1])))
+    estimated_bloom_filter_size = m / 8  # Convert bits to bytes
+        
+    # Compare memory usage
+    print(f"Memory Usage of Hashtable: {hashtable_memory_usage} bytes")
+    print(f"Estimated Memory Usage of Bloom Filter: {estimated_bloom_filter_size:.2f} bytes")
+    print(f"Actual Memory Usage of Bloom Filter: {sys.getsizeof(bloom_filter)} bytes")
+
+    # Comment on findings
+    if hashtable_memory_usage > sys.getsizeof(bloom_filter):
+        print("The Bloom filter uses less memory than the hashtable.")
+    else:
+        print("The hashtable uses less memory than the Bloom filter.")
+
+
+
 def main():
-    urllist, N, R_values, false_positive_rates, memory_usages, bloom_filter = initialize()
     test_urls, false_urls = sample_1000_urls(urllist)
     for R in R_values:
         k = int(0.7 * R / N)
@@ -62,6 +94,8 @@ def main():
     plt.title('False Positive Rate vs Memory Usage')
     plt.grid(True)
     plt.show()
+
+    compare_with_hashtable(urllist, bloom_filter)
 
 
 if __name__ == "__main__":
